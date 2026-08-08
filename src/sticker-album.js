@@ -113,13 +113,15 @@ async function completeCollection({ album, state, sticker, slot, src }) {
 
   const allCollected =
     discoveredSources.size > 0 && state.filled.size >= discoveredSources.size;
+  const debugFinale =
+    window.location.hash === "#debug" && state.filled.size >= 1;
 
   state.hideTimer = window.setTimeout(() => {
     album.classList.remove("is-flash");
     state.celebrating = false;
     if (state.activeSticker) return;
 
-    if (allCollected && !state.finaleDone) {
+    if ((allCollected || debugFinale) && !state.finaleDone) {
       state.finaleDone = true;
       hideAlbum(album, state);
       playFinale([...discoveredSources]);

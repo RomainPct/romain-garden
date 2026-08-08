@@ -4,6 +4,11 @@ const SLOT_SIZE = 48;
 const EDGE_REVEAL_PX = 36;
 /** Cap density so the static overlay stays smooth (canvas batch draw). */
 const FINALE_COUNT = 400;
+const FINALE_BITMAP_SIZE = 128;
+const FINALE_BURST_MS = 1400;
+
+const finaleBitmapCache = new Map();
+let finaleBitmapWarm = null;
 
 /**
  * Left-side sticker collection tray.
@@ -24,6 +29,8 @@ export function initStickerAlbum() {
 
   seedKnownSources();
   syncSlots(album, state.filled);
+  // Warm sticker bitmaps in the background for a snappier finale (esp. Safari).
+  void warmFinaleBitmaps(uniqueStickerSources());
 
   document.addEventListener("sticker-grab-start", (event) => {
     const sticker = event.detail?.sticker;
@@ -115,6 +122,11 @@ async function completeCollection({ album, state, sticker, slot, src }) {
     discoveredSources.size > 0 && state.filled.size >= discoveredSources.size;
   const debugFinale =
     window.location.hash === "#debug" && state.filled.size >= 1;
+
+  if ((allCollected || debugFinale) && !state.finaleDone) {
+    // Decode stickers during the hide delay so Safari can start drawing immediately.
+    void warmFinaleBitmaps([...discoveredSources]);
+  }
 
   state.hideTimer = window.setTimeout(() => {
     album.classList.remove("is-flash");
@@ -405,33 +417,62 @@ function playFinale(sources) {
   finale.innerHTML = `
     <canvas class="sticker-finale__rain" aria-hidden="true"></canvas>
     <div class="sticker-finale__message">
-      <p class="sticker-finale__yeah rgn-text-huge-title-visual">Yeaaaaaaah!</p>
-      <div class="sticker-finale__actions">
-        <button type="button" class="sticker-finale__cta sticker-finale__cta--share rgn-text-action">
+      <article class="sticker-finale__card" aria-label="Title unlocked">
+        <img
+          class="sticker-finale__trophy"
+          src="/assets/Icon/trophy-sticker.png"
+          alt=""
+          width="200"
+          height="200"
+          decoding="async"
+          fetchpriority="high"
+          draggable="false"
+        />
+        <div class="sticker-finale__copy">
+          <div class="sticker-finale__titles">
+            <p class="sticker-finale__eyebrow rgn-text-action">Title unlocked</p>
+            <p class="sticker-finale__title rgn-text-large-title">Magnificent gardener</p>
+          </div>
+          <p class="sticker-finale__body rgn-text-body">
+            The garden is proud of you!
+          </p>
+        </div>
+        <button type="button" class="sticker-finale__share rgn-text-action">
           Share
+          <img
+            class="sticker-finale__share-arrow"
+            src="/assets/Icon/arrow-up-right.svg"
+            alt=""
+            width="13"
+            height="13"
+            aria-hidden="true"
+          />
         </button>
-        <button type="button" class="sticker-finale__cta sticker-finale__cta--close rgn-text-body">
-          I'm the boss, close
+        <button type="button" class="sticker-finale__back rgn-text-body">
+          Go back to my garden
         </button>
-      </div>
+      </article>
     </div>
   `;
   document.body.appendChild(finale);
+  // Show the overlay immediately — don't wait on bitmap decode (Safari).
+  requestAnimationFrame(() => finale.classList.add("is-on"));
 
   const canvas = finale.querySelector(".sticker-finale__rain");
-  const shareBtn = finale.querySelector(".sticker-finale__cta--share");
-  const closeBtn = finale.querySelector(".sticker-finale__cta--close");
+  const shareBtn = finale.querySelector(".sticker-finale__share");
+  const closeBtn = finale.querySelector(".sticker-finale__back");
   if (!(canvas instanceof HTMLCanvasElement)) return;
 
   const vw = window.innerWidth;
   const vh = window.innerHeight;
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  // Safari pays heavily for huge canvases; keep pixel buffer modest.
+  const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
   canvas.width = Math.max(1, Math.floor(vw * dpr));
   canvas.height = Math.max(1, Math.floor(vh * dpr));
   canvas.style.width = `${vw}px`;
   canvas.style.height = `${vh}px`;
 
-  const ctx = canvas.getContext("2d", { alpha: true });
+  const ctx = canvas.getContext("2d", { alpha: true, desynchronized: true });
   if (!ctx) return;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
@@ -446,18 +487,25 @@ function playFinale(sources) {
       x: -bleed + Math.random() * (vw + bleed * 2),
       y: -bleed + Math.random() * (vh + bleed * 2),
       rot: ((-50 + Math.random() * 100) * Math.PI) / 180,
+      // Stagger appear times so stickers pop in one-by-one across the burst.
+      at: Math.random() * FINALE_BURST_MS,
     });
   }
+  pieces.sort((a, b) => a.at - b.at);
 
   void (async () => {
-    const bitmaps = await loadFinaleBitmaps(sources);
-    const batchSize = 40;
-    let drawn = 0;
+    const bitmaps = await warmFinaleBitmaps(sources);
+    // Canvas stays visible while we paint into it over time.
+    finale.classList.add("is-painted");
 
-    const drawBatch = () => {
-      const end = Math.min(drawn + batchSize, pieces.length);
-      for (let i = drawn; i < end; i += 1) {
-        const piece = pieces[i];
+    let drawn = 0;
+    const startedAt = performance.now();
+
+    const drawBatch = (now) => {
+      const elapsed = now - startedAt;
+      while (drawn < pieces.length && pieces[drawn].at <= elapsed) {
+        const piece = pieces[drawn];
+        drawn += 1;
         const bmp = bitmaps.get(piece.src);
         if (!bmp) continue;
         const half = piece.size / 2;
@@ -467,11 +515,6 @@ function playFinale(sources) {
         ctx.drawImage(bmp, -half, -half, piece.size, piece.size);
         ctx.restore();
       }
-      drawn = end;
-
-      if (drawn === batchSize) {
-        finale.classList.add("is-on", "is-painted");
-      }
 
       if (drawn < pieces.length) {
         requestAnimationFrame(drawBatch);
@@ -480,7 +523,7 @@ function playFinale(sources) {
 
       window.setTimeout(() => {
         finale.classList.add("is-message");
-      }, 420);
+      }, 300);
     };
 
     requestAnimationFrame(drawBatch);
@@ -495,25 +538,54 @@ function playFinale(sources) {
   });
 }
 
-function loadFinaleBitmaps(sources) {
+function warmFinaleBitmaps(sources) {
   const unique = [...new Set(sources)];
-  return Promise.all(
-    unique.map(
-      (src) =>
-        new Promise((resolve) => {
-          const img = new Image();
-          img.decoding = "async";
-          img.onload = () => resolve([src, img]);
-          img.onerror = () => resolve([src, null]);
-          img.src = src;
-        }),
-    ),
-  ).then((entries) => {
-    const map = new Map();
-    for (const [src, img] of entries) {
-      if (img) map.set(src, img);
-    }
-    return map;
+  const missing = unique.filter((src) => !finaleBitmapCache.has(src));
+  if (!missing.length) {
+    return Promise.resolve(finaleBitmapCache);
+  }
+
+  if (!finaleBitmapWarm) {
+    finaleBitmapWarm = Promise.all(missing.map((src) => loadFinaleBitmap(src))).then(() => {
+      finaleBitmapWarm = null;
+      return finaleBitmapCache;
+    });
+  }
+
+  return finaleBitmapWarm.then(() => {
+    const stillMissing = unique.filter((src) => !finaleBitmapCache.has(src));
+    if (!stillMissing.length) return finaleBitmapCache;
+    return Promise.all(stillMissing.map((src) => loadFinaleBitmap(src))).then(
+      () => finaleBitmapCache,
+    );
+  });
+}
+
+function loadFinaleBitmap(src) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.decoding = "async";
+    img.onload = () => {
+      const finish = (bitmap) => {
+        finaleBitmapCache.set(src, bitmap);
+        resolve(bitmap);
+      };
+
+      if (typeof createImageBitmap === "function") {
+        createImageBitmap(img, {
+          resizeWidth: FINALE_BITMAP_SIZE,
+          resizeHeight: FINALE_BITMAP_SIZE,
+          resizeQuality: "high",
+        })
+          .then(finish)
+          .catch(() => finish(img));
+        return;
+      }
+
+      finish(img);
+    };
+    img.onerror = () => resolve(null);
+    img.src = src;
   });
 }
 

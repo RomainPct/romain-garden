@@ -124,22 +124,17 @@ async function completeCollection({ album, state, sticker, slot, src }) {
     window.location.hash === "#debug" && state.filled.size >= 1;
 
   if ((allCollected || debugFinale) && !state.finaleDone) {
-    // Decode stickers during the hide delay so Safari can start drawing immediately.
-    void warmFinaleBitmaps([...discoveredSources]);
+    state.finaleDone = true;
+    const sources = [...discoveredSources];
+    // Warm bitmaps + kick off cascade immediately on last drop (don't wait for album hide).
+    void warmFinaleBitmaps(sources);
+    playFinale(sources);
   }
 
   state.hideTimer = window.setTimeout(() => {
     album.classList.remove("is-flash");
     state.celebrating = false;
     if (state.activeSticker) return;
-
-    if ((allCollected || debugFinale) && !state.finaleDone) {
-      state.finaleDone = true;
-      hideAlbum(album, state);
-      playFinale([...discoveredSources]);
-      return;
-    }
-
     hideAlbum(album, state);
   }, HIDE_DELAY_MS);
 }
@@ -411,6 +406,7 @@ function fillSlot(slot, src) {
 
 function playFinale(sources) {
   if (!sources.length) return;
+  if (document.querySelector(".sticker-finale")) return;
 
   const finale = document.createElement("div");
   finale.className = "sticker-finale";
@@ -439,14 +435,6 @@ function playFinale(sources) {
         </div>
         <button type="button" class="sticker-finale__share rgn-text-action">
           Share
-          <img
-            class="sticker-finale__share-arrow"
-            src="/assets/Icon/arrow-up-right.svg"
-            alt=""
-            width="13"
-            height="13"
-            aria-hidden="true"
-          />
         </button>
         <button type="button" class="sticker-finale__back rgn-text-body">
           Go back to my garden
@@ -455,8 +443,6 @@ function playFinale(sources) {
     </div>
   `;
   document.body.appendChild(finale);
-  // Show the overlay immediately — don't wait on bitmap decode (Safari).
-  requestAnimationFrame(() => finale.classList.add("is-on"));
 
   const canvas = finale.querySelector(".sticker-finale__rain");
   const shareBtn = finale.querySelector(".sticker-finale__share");
@@ -472,9 +458,14 @@ function playFinale(sources) {
   canvas.style.width = `${vw}px`;
   canvas.style.height = `${vh}px`;
 
+  // Force canvas buffer allocation now (warmup) before first paint.
   const ctx = canvas.getContext("2d", { alpha: true, desynchronized: true });
   if (!ctx) return;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, vw, vh);
+
+  // Reveal as soon as the frame after canvas warmup.
+  requestAnimationFrame(() => finale.classList.add("is-on", "is-painted"));
 
   const pickSrc = createSourcePicker(sources);
   const pieces = [];
@@ -494,9 +485,10 @@ function playFinale(sources) {
   pieces.sort((a, b) => a.at - b.at);
 
   void (async () => {
-    const bitmaps = await warmFinaleBitmaps(sources);
-    // Canvas stays visible while we paint into it over time.
-    finale.classList.add("is-painted");
+    const unique = [...new Set(sources)];
+    const bitmaps = unique.every((src) => finaleBitmapCache.has(src))
+      ? finaleBitmapCache
+      : await warmFinaleBitmaps(sources);
 
     let drawn = 0;
     const startedAt = performance.now();

@@ -766,7 +766,6 @@ button.site-footer__link:focus-visible {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
   margin: 0;
   padding: 4px 16px;
   border: none;
@@ -775,12 +774,6 @@ button.site-footer__link:focus-visible {
   color: var(--rgn-foreground-on-brand);
   cursor: pointer;
   line-height: 22px;
-}
-
-.sticker-finale__share-arrow {
-  display: block;
-  width: 13px;
-  height: 13px;
 }
 
 .sticker-finale__share:hover,

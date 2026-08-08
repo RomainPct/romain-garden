@@ -1,0 +1,21 @@
+name: romain_garden
+
+services:
+  romain_garden:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    networks:
+      - dokploy-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.romain_garden.rule=Host(`romain.garden`)"
+      - "traefik.http.routers.romain_garden.entrypoints=websecure"
+      - "traefik.http.routers.romain_garden.tls=true"
+      - "traefik.http.routers.romain_garden.tls.certresolver=letsencrypt"
+      - "traefik.http.services.romain_garden.loadbalancer.server.port=80"
+
+networks:
+  dokploy-network:
+    external: true

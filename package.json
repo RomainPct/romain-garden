@@ -12,6 +12,6 @@
     "vite": "^7.0.0"
   },
   "dependencies": {
-    "@romainpct/romain-garden-ds": "^1.0.3"
+    "@romainpct/romain-garden-ds": "latest"
   }
 }

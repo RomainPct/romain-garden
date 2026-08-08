@@ -54,37 +54,47 @@ const styles = /* css */ `
     justify-content: flex-start;
   }
 
-  .icons:not(:has(sticker-icon)) {
+  .icons:not(:has(.sticker-slot)):not(:has(sticker-icon)) {
     display: none;
   }
 
-  .icons ::slotted(sticker-icon),
-  .icons sticker-icon {
+  .sticker-slot {
     position: relative;
-    --sticker-size: 100px;
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 100px;
+    height: 100px;
   }
 
-  .icons ::slotted(sticker-icon:not(:first-child)),
-  .icons sticker-icon:not(:first-child) {
+  .sticker-slot:not(:first-child) {
     margin-left: -33px;
   }
 
-  .icons ::slotted(sticker-icon:nth-child(1)),
-  .icons sticker-icon:nth-child(1) {
+  .sticker-slot--1 {
     z-index: 3;
     transform: rotate(-7.34deg);
   }
 
-  .icons ::slotted(sticker-icon:nth-child(2)),
-  .icons sticker-icon:nth-child(2) {
+  .sticker-slot--2 {
     z-index: 1;
     transform: rotate(0deg);
   }
 
-  .icons ::slotted(sticker-icon:nth-child(3)),
-  .icons sticker-icon:nth-child(3) {
+  .sticker-slot--3 {
     z-index: 2;
     transform: rotate(8.46deg);
+  }
+
+  .sticker-slot sticker-icon,
+  .sticker-slot .sticker-fingerprint {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    --sticker-size: 100px;
   }
 
   .subtitle {
@@ -181,8 +191,8 @@ export class SectionTitle extends HTMLElement {
       attrIcons.length > 0
         ? attrIcons
             .map(
-              (src) =>
-                `<sticker-icon src="${escapeAttr(src)}" alt="" size="100"></sticker-icon>`,
+              (src, index) =>
+                `<span class="sticker-slot sticker-slot--${index + 1}"><sticker-icon src="${escapeAttr(src)}" alt="" size="100"></sticker-icon></span>`,
             )
             .join("")
         : `<slot name="icon"></slot>`;

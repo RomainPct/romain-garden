@@ -41,10 +41,23 @@ const styles = /* css */ `
 
   .icon {
     flex-shrink: 0;
+    position: relative;
+    z-index: 2;
+    display: inline-flex;
+    line-height: 0;
   }
 
   .icon sticker-icon {
     --sticker-size: 80px;
+    pointer-events: auto;
+    cursor: grab;
+    position: relative;
+    z-index: 2;
+  }
+
+  .icon .sticker-fingerprint {
+    width: var(--sticker-size, 80px);
+    height: var(--sticker-size, 80px);
   }
 
   .content {
@@ -112,6 +125,11 @@ const styles = /* css */ `
 
     .icon sticker-icon {
       --sticker-size: 48px;
+    }
+
+    .icon .sticker-fingerprint {
+      width: 48px;
+      height: 48px;
     }
 
     .row {
@@ -201,8 +219,8 @@ export class GardenCard extends HTMLElement {
     const iconSrc = this.icon;
 
     const icon = iconSrc
-      ? `<sticker-icon class="icon" src="${escapeAttr(iconSrc)}" alt="" size="80"></sticker-icon>`
-      : `<span class="icon"><slot name="icon"></slot></span>`;
+      ? `<span class="icon" part="icon"><sticker-icon src="${escapeAttr(iconSrc)}" alt="" size="80"></sticker-icon></span>`
+      : `<span class="icon" part="icon"><slot name="icon"></slot></span>`;
 
     const copy = `
       <div class="content" part="content">

@@ -6,7 +6,7 @@ const styles = /* css */ `
   :host {
     display: block;
     width: 100%;
-    max-width: 520px;
+    max-width: 100%;
   }
 
   a.card,

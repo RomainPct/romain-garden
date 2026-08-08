@@ -36,8 +36,8 @@ const styles = /* css */ `
 
   .content {
     margin: 0;
-    flex: 1 1 auto;
-    min-width: min(100%, 12rem);
+    flex: 0 1 auto;
+    max-width: 100%;
     font-family: var(--rgn-text-huge-title-font-family);
     font-weight: var(--rgn-text-huge-title-font-weight);
     font-size: var(--rgn-text-huge-title-font-size);
@@ -52,6 +52,10 @@ const styles = /* css */ `
     flex-shrink: 0;
     align-items: center;
     justify-content: flex-start;
+  }
+
+  .icons:not(:has(sticker-icon)) {
+    display: none;
   }
 
   .icons ::slotted(sticker-icon),
@@ -83,6 +87,17 @@ const styles = /* css */ `
     transform: rotate(8.46deg);
   }
 
+  .subtitle {
+    margin: -30px 0 0;
+    max-width: 42rem;
+    font-family: var(--rgn-text-body-font-family);
+    font-weight: var(--rgn-text-body-font-weight);
+    font-size: var(--rgn-text-body-font-size);
+    letter-spacing: var(--rgn-text-body-letter-spacing);
+    line-height: 22px;
+    color: var(--rgn-foreground-secondary);
+  }
+
   @media (max-width: 640px) {
     .body {
       flex-direction: column;
@@ -91,19 +106,22 @@ const styles = /* css */ `
     }
 
     .content {
-      flex: 0 0 auto;
       width: 100%;
       font-family: var(--rgn-text-mobile-huge-title-font-family);
       font-weight: var(--rgn-text-mobile-huge-title-font-weight);
       font-size: var(--rgn-text-mobile-huge-title-font-size);
       letter-spacing: var(--rgn-text-mobile-huge-title-letter-spacing);
     }
+
+    .subtitle {
+      margin-top: -22px;
+    }
   }
 `;
 
 export class SectionTitle extends HTMLElement {
   static get observedAttributes() {
-    return ["content", "icon-1", "icon-2", "icon-3"];
+    return ["content", "subtitle", "icon-1", "icon-2", "icon-3"];
   }
 
   #root;
@@ -127,6 +145,15 @@ export class SectionTitle extends HTMLElement {
 
   set content(value) {
     this.setAttribute("content", value ?? "");
+  }
+
+  get subtitle() {
+    return this.getAttribute("subtitle") ?? "";
+  }
+
+  set subtitle(value) {
+    if (value) this.setAttribute("subtitle", value);
+    else this.removeAttribute("subtitle");
   }
 
   getIcon(index) {
@@ -161,9 +188,11 @@ export class SectionTitle extends HTMLElement {
         : `<slot name="icon"></slot>`;
 
     const text = this.content;
-    const contentHtml = text
-      ? escapeHtml(text)
-      : `<slot></slot>`;
+    const contentHtml = text ? escapeHtml(text) : `<slot></slot>`;
+    const subtitle = this.subtitle;
+    const subtitleHtml = subtitle
+      ? `<p class="subtitle" part="subtitle">${escapeHtml(subtitle)}</p>`
+      : "";
 
     this.#root.innerHTML = `
       <style>${styles}</style>
@@ -173,6 +202,7 @@ export class SectionTitle extends HTMLElement {
           <p class="content" part="content">${contentHtml}</p>
           <div class="icons" part="icons">${iconsHtml}</div>
         </div>
+        ${subtitleHtml}
       </div>
     `;
   }

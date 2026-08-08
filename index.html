@@ -12,35 +12,161 @@
     />
   </head>
   <body>
-    <header>
+    <header class="site-header">
       <romain-garden-nav current="garden"></romain-garden-nav>
+      <a
+        class="portfolio-cta rgn-text-action"
+        href="https://romainpenchenat.com"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Portfolio
+        <img
+          class="portfolio-cta__arrow"
+          src="/assets/Icon/arrow-up-right.svg"
+          alt=""
+          width="13"
+          height="13"
+          aria-hidden="true"
+        />
+      </a>
     </header>
 
-    <main>
-      <h1 class="rgn-text-large-title">Component lab</h1>
-      <p class="rgn-text-body">
-        sticker-icon, garden-card, and section-title — using DS tokens.
-      </p>
+    <main class="page">
+      <section class="hero" aria-label="Introduction">
+        <p class="hero__eyebrow rgn-text-body">
+          <span>In Romain’s Garden</span>
+          <sticker-icon
+            class="hero__profile"
+            src="/assets/Icon/profile.png"
+            alt=""
+            size="24"
+          ></sticker-icon>
+          <span>, built with heart</span>
+          <sticker-icon
+            class="hero__heart"
+            src="/assets/Icon/heart-sticker.png"
+            alt=""
+            size="24"
+          ></sticker-icon>
+          <span>, you will find…</span>
+        </p>
 
-      <section class="lab">
-        <h2 class="rgn-text-title">Garden card</h2>
+        <h1 class="hero__title">
+          <span class="rgn-text-huge-title-visual hero__title-primary">
+            Opinionated Product Content
+          </span>
+          <span class="hero__title-secondary">
+            <span class="rgn-text-huge-title">to help you</span>
+            <sticker-icon
+              class="hero__sticker hero__sticker--you"
+              src="/assets/Icon/you-sticker.png"
+              alt=""
+            ></sticker-icon>
+            <span class="rgn-text-huge-title">&amp; your agents</span>
+            <sticker-icon
+              class="hero__sticker hero__sticker--ai"
+              src="/assets/Icon/ai-sticker.png"
+              alt=""
+            ></sticker-icon>
+          </span>
+        </h1>
+      </section>
+
+      <section class="card-grid card-grid--primary" aria-label="Product content">
         <garden-card
-          title="Garden"
-          subtitle="The home for all this stuff"
-          href="https://romain.garden"
+          title="Benchmark library"
+          subtitle="8k+ screenshots to inspire you"
+          href="https://benchmark.romain.garden"
           icon="/assets/Icon/BenchmarkLibrary.png"
+        ></garden-card>
+        <garden-card
+          title="Product nuggets"
+          subtitle="Curated product & design resources"
+          href="https://nuggets.romain.garden"
+          icon="/assets/Icon/Resources.png"
+        ></garden-card>
+        <garden-card
+          title="Blog (Coming soon...)"
+          subtitle="Guides and advices about product practices"
+          href="https://blog.romain.garden"
+          icon="/assets/Icon/Blog.png"
+        ></garden-card>
+        <garden-card
+          title="Podcast"
+          subtitle="Your weekly dose of design in French"
+          href="https://podcast.romain.garden"
+          icon="/assets/Icon/Podcast.png"
         ></garden-card>
       </section>
 
-      <section class="lab">
-        <h2 class="rgn-text-title">Section title</h2>
+      <section class="explore" aria-label="Explore">
         <section-title
-          content="But try to catch all the stickers"
-          icon-1="/assets/Icon/BenchmarkLibrary.png"
-          icon-2="/assets/Icon/Apps.png"
-          icon-3="/assets/Icon/ai-sticker.png"
+          content="Also, you can explore..."
+          subtitle="But these are NOT product content 🙅, just stuff anyone can use!"
         ></section-title>
+
+        <div class="card-grid card-grid--explore">
+          <garden-card
+            title="Graines Apps"
+            subtitle="Consumer apps for a simple daily life"
+            href="https://apps.apple.com/fr/developer/graines/id1370928629"
+            icon="/assets/Icon/Apps.png"
+          ></garden-card>
+          <garden-card
+            title="Portfolio"
+            subtitle="Meet the gardener of this space"
+            href="https://romainpenchenat.com"
+            icon="/assets/Icon/Portfolio.png"
+          ></garden-card>
+        </div>
       </section>
+
+      <div class="spacer spacer--lg" aria-hidden="true"></div>
+
+      <section-title content="We are done this time."></section-title>
+
+      <div class="spacer spacer--xl" aria-hidden="true"></div>
+
+      <section-title
+        content="Really, there is nothing more"
+        icon-1="/assets/Icon/sticker-nothing.png"
+      ></section-title>
+
+      <div class="spacer spacer--2xl" aria-hidden="true"></div>
+
+      <section-title
+        content="But try to catch stickers..."
+        icon-1="/assets/Icon/BenchmarkLibrary.png"
+        icon-2="/assets/Icon/Apps.png"
+        icon-3="/assets/Icon/ai-sticker.png"
+      ></section-title>
+
+      <div class="spacer spacer--sm" aria-hidden="true"></div>
+
+      <footer class="site-footer">
+        <hr class="section-rule" />
+        <div class="site-footer__content">
+          <nav class="site-footer__links" aria-label="Footer">
+            <span class="site-footer__link">Contact</span>
+            <span class="site-footer__sep" aria-hidden="true"></span>
+            <a
+              class="site-footer__link"
+              href="https://graines.company"
+              target="_blank"
+              rel="noopener noreferrer"
+              >Graines company</a
+            >
+            <span class="site-footer__sep" aria-hidden="true"></span>
+            <a class="site-footer__link" href="https://romain.garden/legal"
+              >Terms &amp; Privacy</a
+            >
+          </nav>
+          <p class="site-footer__wish rgn-text-body-small">
+            Hope you’re having a nice day ☀️
+          </p>
+        </div>
+      </footer>
     </main>
 
     <script type="module" src="/src/main.js"></script>

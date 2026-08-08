@@ -1,7 +1,9 @@
 const NEAR_PX = 88;
-const HIDE_DELAY_MS = 3000;
+const HIDE_DELAY_MS = 2000;
 const SLOT_SIZE = 48;
 const EDGE_REVEAL_PX = 36;
+const FINALE_COUNT = 1100;
+const FINALE_STAGGER_MS = 5;
 
 /**
  * Left-side sticker collection tray.
@@ -17,10 +19,11 @@ export function initStickerAlbum() {
     activeSticker: null,
     hideTimer: 0,
     filled: new Set(),
+    finaleDone: false,
   };
 
   seedKnownSources();
-  rebuildSlots(album, state.filled);
+  syncSlots(album, state.filled);
 
   document.addEventListener("sticker-grab-start", (event) => {
     const sticker = event.detail?.sticker;
@@ -32,7 +35,8 @@ export function initStickerAlbum() {
     album.classList.remove("is-flash");
     state.activeSticker = sticker;
     seedKnownSources();
-    rebuildSlots(album, state.filled);
+    // Avoid wiping the panel DOM while it's visible — only append missing slots.
+    syncSlots(album, state.filled);
     showAlbum(album, state);
   });
 
@@ -63,18 +67,17 @@ export function initStickerAlbum() {
   });
 
   document.addEventListener("pointermove", (event) => {
-    if (state.filled.size === 0) return;
+    if (state.filled.size === 0 || state.finaleDone) return;
     if (state.activeSticker || state.celebrating) return;
 
-    const safeLeft = EDGE_REVEAL_PX;
-    const inEdge = event.clientX <= safeLeft;
+    const inEdge = event.clientX <= EDGE_REVEAL_PX;
     const overAlbum = isPointOverAlbum(album, event.clientX, event.clientY);
 
     if (inEdge || overAlbum) {
       if (!state.open) {
         state.peek = true;
         seedKnownSources();
-        rebuildSlots(album, state.filled);
+        syncSlots(album, state.filled);
         showAlbum(album, state);
       }
       return;
@@ -94,7 +97,7 @@ async function completeCollection({ album, state, sticker, slot, src }) {
   discoveredSources.add(normalizeSrc(src));
   slot.classList.add("is-calling");
 
-  const target = insetRect(slot.getBoundingClientRect(), 0.1);
+  const target = insetRect(slot.getBoundingClientRect(), 0.06);
 
   try {
     await sticker.collectInto(target);
@@ -104,21 +107,63 @@ async function completeCollection({ album, state, sticker, slot, src }) {
 
   fillSlot(slot, src);
   sticker.remove();
-  album.classList.add("is-flash");
   slot.classList.remove("is-calling");
-  slot.classList.add("is-filled");
+  slot.classList.add("is-filled", "is-landed");
+  triggerCollectFx(album, slot);
+
+  const allCollected =
+    discoveredSources.size > 0 && state.filled.size >= discoveredSources.size;
 
   state.hideTimer = window.setTimeout(() => {
     album.classList.remove("is-flash");
     state.celebrating = false;
-    // Keep the panel if the user already grabbed another sticker.
     if (state.activeSticker) return;
+
+    if (allCollected && !state.finaleDone) {
+      state.finaleDone = true;
+      hideAlbum(album, state);
+      playFinale([...discoveredSources]);
+      return;
+    }
+
     hideAlbum(album, state);
   }, HIDE_DELAY_MS);
 }
 
+function triggerCollectFx(album, slot) {
+  album.classList.remove("is-flash");
+  void album.offsetWidth;
+  album.classList.add("is-flash");
+
+  const sparks = album.querySelector(".sticker-album__sparks");
+  if (!sparks) return;
+  sparks.replaceChildren();
+
+  const slotRect = slot.getBoundingClientRect();
+  const albumRect = album.getBoundingClientRect();
+  const ox = slotRect.left + slotRect.width / 2 - albumRect.left;
+  const oy = slotRect.top + slotRect.height / 2 - albumRect.top;
+
+  for (let i = 0; i < 12; i += 1) {
+    const spark = document.createElement("span");
+    spark.className = "sticker-album__spark";
+    const angle = (Math.PI * 2 * i) / 12 + Math.random() * 0.35;
+    const dist = 28 + Math.random() * 36;
+    spark.style.left = `${ox}px`;
+    spark.style.top = `${oy}px`;
+    spark.style.setProperty("--dx", `${Math.cos(angle) * dist}px`);
+    spark.style.setProperty("--dy", `${Math.sin(angle) * dist}px`);
+    spark.style.animationDelay = `${i * 18}ms`;
+    sparks.appendChild(spark);
+  }
+
+  window.setTimeout(() => {
+    sparks.replaceChildren();
+  }, 900);
+}
+
 function insetRect(rect, ratio) {
-  const inset = Math.max(3, Math.min(rect.width, rect.height) * ratio);
+  const inset = Math.max(2, Math.min(rect.width, rect.height) * ratio);
   const size = Math.max(8, Math.min(rect.width, rect.height) - inset * 2);
   return {
     left: rect.left + (rect.width - size) / 2,
@@ -137,7 +182,7 @@ function ensureAlbum() {
   album.setAttribute("aria-hidden", "true");
   album.innerHTML = `
     <div class="sticker-album__shell">
-      <div class="sticker-album__flash" aria-hidden="true"></div>
+      <div class="sticker-album__sparks" aria-hidden="true"></div>
       <div class="sticker-album__panel">
         <div class="sticker-album__slots"></div>
       </div>
@@ -153,26 +198,37 @@ function isPointOverAlbum(album, x, y) {
   return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
 }
 
-function rebuildSlots(album, filled = new Set()) {
+/** Sync slots without remounting existing ones (prevents panel flicker). */
+function syncSlots(album, filled = new Set()) {
   const slotsRoot = album.querySelector(".sticker-album__slots");
   if (!slotsRoot) return;
 
   const sources = uniqueStickerSources();
-  slotsRoot.innerHTML = sources
-    .map((src) => {
-      const isFilled = filled.has(src);
-      return `
-        <div
-          class="sticker-album__slot${isFilled ? " is-filled" : ""}"
-          data-src="${escapeAttr(src)}"
-          style="--slot-size: ${SLOT_SIZE}px"
-        >
-          <img class="sticker-album__ghost" src="${escapeAttr(src)}" alt="" draggable="false" />
-          <img class="sticker-album__full" src="${escapeAttr(src)}" alt="" draggable="false" />
-        </div>
+  const existing = new Map(
+    [...slotsRoot.querySelectorAll(".sticker-album__slot")].map((slot) => [
+      slot.dataset.src,
+      slot,
+    ]),
+  );
+
+  sources.forEach((src) => {
+    let slot = existing.get(src);
+    if (!slot) {
+      slot = document.createElement("div");
+      slot.className = "sticker-album__slot";
+      slot.dataset.src = src;
+      slot.style.setProperty("--slot-size", `${SLOT_SIZE}px`);
+      slot.innerHTML = `
+        <img class="sticker-album__ghost" src="${escapeAttr(src)}" alt="" draggable="false" />
+        <img class="sticker-album__full" src="${escapeAttr(src)}" alt="" draggable="false" />
       `;
-    })
-    .join("");
+      slotsRoot.appendChild(slot);
+    }
+
+    if (filled.has(src)) {
+      slot.classList.add("is-filled");
+    }
+  });
 }
 
 const discoveredSources = new Set();
@@ -183,7 +239,6 @@ function seedKnownSources() {
     if (src) discoveredSources.add(src);
   }
 
-  // section-title icons live in attributes (also mirrored in shadow)
   document.querySelectorAll("section-title").forEach((el) => {
     for (const name of ["icon-1", "icon-2", "icon-3"]) {
       const src = normalizeSrc(el.getAttribute(name) || "");
@@ -191,7 +246,6 @@ function seedKnownSources() {
     }
   });
 
-  // garden-card icons
   document.querySelectorAll("garden-card").forEach((el) => {
     const src = normalizeSrc(el.getAttribute("icon") || "");
     if (src) discoveredSources.add(src);
@@ -288,6 +342,57 @@ function fillSlot(slot, src) {
   const ghost = slot.querySelector(".sticker-album__ghost");
   if (full) full.src = src;
   if (ghost) ghost.src = src;
+}
+
+function playFinale(sources) {
+  if (!sources.length) return;
+
+  const finale = document.createElement("div");
+  finale.className = "sticker-finale";
+  finale.innerHTML = `
+    <div class="sticker-finale__rain" aria-hidden="true"></div>
+    <div class="sticker-finale__message">
+      <p class="sticker-finale__yeah rgn-text-huge-title-visual">Yeaaaaaaah!</p>
+      <button type="button" class="sticker-finale__cta rgn-text-action">
+        Contact Romain to tell him something
+      </button>
+    </div>
+  `;
+  document.body.appendChild(finale);
+
+  const rain = finale.querySelector(".sticker-finale__rain");
+  const cta = finale.querySelector(".sticker-finale__cta");
+
+  requestAnimationFrame(() => finale.classList.add("is-on"));
+
+  for (let i = 0; i < FINALE_COUNT; i += 1) {
+    const img = document.createElement("img");
+    img.className = "sticker-finale__piece";
+    img.src = sources[i % sources.length];
+    img.alt = "";
+    img.draggable = false;
+    const size = 48 + Math.random() * 120;
+    const x = Math.random() * 100;
+    const y = Math.random() * 100;
+    const rot = -48 + Math.random() * 96;
+    img.style.width = `${size}px`;
+    img.style.height = `${size}px`;
+    img.style.left = `${x}%`;
+    img.style.top = `${y}%`;
+    img.style.setProperty("--rot", `${rot}deg`);
+    img.style.animationDelay = `${i * FINALE_STAGGER_MS}ms`;
+    rain.appendChild(img);
+  }
+
+  const coverMs = FINALE_COUNT * FINALE_STAGGER_MS + 700;
+
+  window.setTimeout(() => {
+    finale.classList.add("is-message");
+  }, coverMs + 200);
+
+  cta?.addEventListener("click", () => {
+    document.querySelector("romain-garden-nav")?.openContact();
+  });
 }
 
 function normalizeSrc(src) {

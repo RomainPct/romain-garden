@@ -206,25 +206,24 @@ export class StickerIcon extends HTMLElement {
         h: rect.height,
       };
 
-      this.#prepareAbsolute(start.w, start.h);
+      // Match target size immediately in layout, animate pose with transform bounce.
+      this.#prepareAbsolute(end.w, end.h);
       this.#bringToFront();
-      this.style.setProperty("--sticker-size", `${start.w}px`);
-      this.style.transition =
-        "left 480ms cubic-bezier(0.22, 1, 0.36, 1), top 480ms cubic-bezier(0.22, 1, 0.36, 1), width 480ms cubic-bezier(0.22, 1, 0.36, 1), height 480ms cubic-bezier(0.22, 1, 0.36, 1), transform 480ms cubic-bezier(0.22, 1, 0.36, 1)";
-      this.style.left = `${start.x}px`;
-      this.style.top = `${start.y}px`;
-      this.style.width = `${start.w}px`;
-      this.style.height = `${start.h}px`;
-      this.style.transform = this.#baseRotateDeg
-        ? `rotate(${this.#baseRotateDeg}deg)`
-        : "none";
+      this.style.setProperty("--sticker-size", `${end.w}px`);
+      this.style.width = `${end.w}px`;
+      this.style.height = `${end.h}px`;
+      this.style.left = `${start.x + (start.w - end.w) / 2}px`;
+      this.style.top = `${start.y + (start.h - end.h) / 2}px`;
+      const startScale = Math.min(start.w / end.w, start.h / end.h);
+      const startRot = this.#baseRotateDeg;
+      this.style.transform = `rotate(${startRot}deg) scale(${startScale})`;
+      this.style.transition = "none";
 
       requestAnimationFrame(() => {
-        this.style.setProperty("--sticker-size", `${end.w}px`);
+        this.style.transition =
+          "left 560ms cubic-bezier(0.22, 1.4, 0.36, 1), top 560ms cubic-bezier(0.22, 1.4, 0.36, 1), transform 560ms cubic-bezier(0.34, 1.56, 0.64, 1)";
         this.style.left = `${end.x}px`;
         this.style.top = `${end.y}px`;
-        this.style.width = `${end.w}px`;
-        this.style.height = `${end.h}px`;
         this.style.transform = "rotate(0deg) scale(1)";
       });
 
@@ -234,12 +233,12 @@ export class StickerIcon extends HTMLElement {
         resolve();
       };
       const onEnd = (event) => {
-        if (event.propertyName === "left" || event.propertyName === "width") {
+        if (event.propertyName === "transform" || event.propertyName === "left") {
           done();
         }
       };
       this.addEventListener("transitionend", onEnd);
-      window.setTimeout(done, 560);
+      window.setTimeout(done, 650);
     });
   }
 

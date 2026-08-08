@@ -19,15 +19,27 @@ header {
 }
 
 main {
-  max-width: 40rem;
+  max-width: 1080px;
   margin: 4rem auto 0;
   padding: 0 1.25rem 4rem;
 }
 
-main h1 {
-  margin-bottom: 0.5rem;
+main > h1 {
+  margin: 0 0 0.5rem;
 }
 
-main p {
+main > p {
+  margin: 0 0 3rem;
+  color: var(--rgn-foreground-secondary);
+}
+
+.lab {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 4rem;
+}
+
+.lab > h2 {
   color: var(--rgn-foreground-secondary);
 }

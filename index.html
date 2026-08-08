@@ -17,8 +17,30 @@
     </header>
 
     <main>
-      <h1 class="rgn-text-large-title">Romain's Garden</h1>
-      <p class="rgn-text-body">Scaffold ready — home page coming next.</p>
+      <h1 class="rgn-text-large-title">Component lab</h1>
+      <p class="rgn-text-body">
+        sticker-icon, garden-card, and section-title — using DS tokens.
+      </p>
+
+      <section class="lab">
+        <h2 class="rgn-text-title">Garden card</h2>
+        <garden-card
+          title="Garden"
+          subtitle="The home for all this stuff"
+          href="https://romain.garden"
+          icon="/assets/Icon/BenchmarkLibrary.png"
+        ></garden-card>
+      </section>
+
+      <section class="lab">
+        <h2 class="rgn-text-title">Section title</h2>
+        <section-title
+          content="But try to catch all the stickers"
+          icon-1="/assets/Icon/BenchmarkLibrary.png"
+          icon-2="/assets/Icon/Apps.png"
+          icon-3="/assets/Icon/ai-sticker.png"
+        ></section-title>
+      </section>
     </main>
 
     <script type="module" src="/src/main.js"></script>

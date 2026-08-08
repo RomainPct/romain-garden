@@ -14,22 +14,72 @@
   <body>
     <header class="site-header">
       <romain-garden-nav current="garden"></romain-garden-nav>
-      <a
-        class="portfolio-cta rgn-text-action"
-        href="https://romainpenchenat.com"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        Portfolio
-        <img
-          class="portfolio-cta__arrow"
-          src="/assets/Icon/arrow-up-right.svg"
-          alt=""
-          width="13"
-          height="13"
-          aria-hidden="true"
-        />
-      </a>
+
+      <div class="header-actions">
+        <button type="button" class="contact-cta rgn-text-body" data-open-contact>
+          Contact
+        </button>
+        <a
+          class="portfolio-cta rgn-text-action"
+          href="https://romainpenchenat.com"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Portfolio
+          <img
+            class="portfolio-cta__arrow"
+            src="/assets/Icon/arrow-up-right.svg"
+            alt=""
+            width="13"
+            height="13"
+            aria-hidden="true"
+          />
+        </a>
+      </div>
+
+      <div class="header-menu">
+        <button
+          type="button"
+          class="header-menu__toggle"
+          aria-label="Open menu"
+          aria-expanded="false"
+          aria-controls="header-menu-panel"
+          data-menu-toggle
+        >
+          <img
+            src="/assets/Icon/menu.svg"
+            alt=""
+            width="21"
+            height="12"
+            aria-hidden="true"
+          />
+        </button>
+        <div
+          class="header-menu__panel"
+          id="header-menu-panel"
+          hidden
+          data-menu-panel
+        >
+          <button type="button" class="header-menu__item" data-open-contact>
+            Contact
+          </button>
+          <a
+            class="header-menu__item header-menu__item--accent"
+            href="https://romainpenchenat.com"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Portfolio
+            <img
+              src="/assets/Icon/arrow-up-right.svg"
+              alt=""
+              width="13"
+              height="13"
+              aria-hidden="true"
+            />
+          </a>
+        </div>
+      </div>
     </header>
 
     <main class="page">
@@ -148,7 +198,9 @@
         <hr class="section-rule" />
         <div class="site-footer__content">
           <nav class="site-footer__links" aria-label="Footer">
-            <span class="site-footer__link">Contact</span>
+            <button type="button" class="site-footer__link" data-open-contact>
+              Contact
+            </button>
             <span class="site-footer__sep" aria-hidden="true"></span>
             <a
               class="site-footer__link"

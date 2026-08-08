@@ -443,6 +443,7 @@ function playFinale(sources) {
     </div>
   `;
   document.body.appendChild(finale);
+  lockPageForFinale();
 
   const canvas = finale.querySelector(".sticker-finale__rain");
   const shareBtn = finale.querySelector(".sticker-finale__share");
@@ -584,8 +585,8 @@ function loadFinaleBitmap(src) {
 async function shareFinale() {
   const payload = {
     title: "Romain's Garden",
-    text: "I caught every sticker in Romain's Garden!",
-    url: window.location.href,
+    text: "I discovered all the stickers in Romain's Garden!",
+    url: window.location.href.replace(/#.*$/, ""),
   };
 
   if (typeof navigator.share === "function") {
@@ -608,9 +609,29 @@ function closeFinale(finale) {
   if (!(finale instanceof HTMLElement)) return;
   finale.classList.remove("is-message", "is-painted");
   finale.classList.add("is-leaving");
-  const remove = () => finale.remove();
+  const remove = () => {
+    finale.remove();
+    unlockPageFromFinale();
+  };
   finale.addEventListener("transitionend", remove, { once: true });
   window.setTimeout(remove, 400);
+}
+
+function lockPageForFinale() {
+  if (document.documentElement.classList.contains("is-finale-open")) return;
+  const scrollY = window.scrollY;
+  document.documentElement.dataset.finaleScrollY = String(scrollY);
+  document.documentElement.classList.add("is-finale-open");
+  document.body.style.top = `-${scrollY}px`;
+}
+
+function unlockPageFromFinale() {
+  if (!document.documentElement.classList.contains("is-finale-open")) return;
+  const scrollY = Number(document.documentElement.dataset.finaleScrollY || 0);
+  document.documentElement.classList.remove("is-finale-open");
+  document.body.style.top = "";
+  delete document.documentElement.dataset.finaleScrollY;
+  window.scrollTo(0, scrollY);
 }
 
 function normalizeSrc(src) {

@@ -13,6 +13,19 @@ body {
   color: var(--rgn-foreground-primary);
 }
 
+html.is-finale-open,
+html.is-finale-open body {
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
+}
+
+html.is-finale-open body {
+  position: fixed;
+  inset: 0 auto auto 0;
+  width: 100%;
+}
+
 .site-header {
   position: sticky;
   top: 0;

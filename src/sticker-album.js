@@ -2,9 +2,8 @@ const NEAR_PX = 88;
 const HIDE_DELAY_MS = 2000;
 const SLOT_SIZE = 48;
 const EDGE_REVEAL_PX = 36;
-/** Cap density so the static overlay stays smooth (DOM images are expensive). */
+/** Cap density so the static overlay stays smooth (canvas batch draw). */
 const FINALE_COUNT = 400;
-const FINALE_BURST_MS = 1400;
 
 /**
  * Left-side sticker collection tray.
@@ -402,7 +401,7 @@ function playFinale(sources) {
   const finale = document.createElement("div");
   finale.className = "sticker-finale";
   finale.innerHTML = `
-    <div class="sticker-finale__rain" aria-hidden="true"></div>
+    <canvas class="sticker-finale__rain" aria-hidden="true"></canvas>
     <div class="sticker-finale__message">
       <p class="sticker-finale__yeah rgn-text-huge-title-visual">Yeaaaaaaah!</p>
       <div class="sticker-finale__actions">
@@ -417,51 +416,73 @@ function playFinale(sources) {
   `;
   document.body.appendChild(finale);
 
-  const rain = finale.querySelector(".sticker-finale__rain");
+  const canvas = finale.querySelector(".sticker-finale__rain");
   const shareBtn = finale.querySelector(".sticker-finale__cta--share");
   const closeBtn = finale.querySelector(".sticker-finale__cta--close");
-  const pickSrc = createSourcePicker(sources);
+  if (!(canvas instanceof HTMLCanvasElement)) return;
+
   const vw = window.innerWidth;
   const vh = window.innerHeight;
-  const fragment = document.createDocumentFragment();
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = Math.max(1, Math.floor(vw * dpr));
+  canvas.height = Math.max(1, Math.floor(vh * dpr));
+  canvas.style.width = `${vw}px`;
+  canvas.style.height = `${vh}px`;
 
+  const ctx = canvas.getContext("2d", { alpha: true });
+  if (!ctx) return;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  const pickSrc = createSourcePicker(sources);
+  const pieces = [];
   for (let i = 0; i < FINALE_COUNT; i += 1) {
-    const img = document.createElement("img");
-    img.className = "sticker-finale__piece";
-    img.src = pickSrc();
-    img.alt = "";
-    img.draggable = false;
-    img.decoding = "async";
-    img.loading = "eager";
-
     const size = (36 + Math.random() * 88) * 1.5;
-    // Bleed past the viewport so edges are covered.
     const bleed = size * 0.35;
-    const x = -bleed + Math.random() * (vw + bleed * 2);
-    const y = -bleed + Math.random() * (vh + bleed * 2);
-    const rot = -50 + Math.random() * 100;
-    const delay = Math.random() * FINALE_BURST_MS;
-
-    img.style.width = `${size}px`;
-    img.style.height = `${size}px`;
-    img.style.left = `${x}px`;
-    img.style.top = `${y}px`;
-    img.style.setProperty("--rot", `${rot}deg`);
-    img.style.setProperty("--delay", `${delay}ms`);
-    fragment.appendChild(img);
+    pieces.push({
+      src: pickSrc(),
+      size,
+      x: -bleed + Math.random() * (vw + bleed * 2),
+      y: -bleed + Math.random() * (vh + bleed * 2),
+      rot: ((-50 + Math.random() * 100) * Math.PI) / 180,
+    });
   }
 
-  rain.appendChild(fragment);
+  void (async () => {
+    const bitmaps = await loadFinaleBitmaps(sources);
+    const batchSize = 40;
+    let drawn = 0;
 
-  // Paint final poses once (opacity 0), then reveal with opacity only.
-  requestAnimationFrame(() => {
-    void rain.offsetWidth;
-    finale.classList.add("is-on", "is-painted");
-  });
+    const drawBatch = () => {
+      const end = Math.min(drawn + batchSize, pieces.length);
+      for (let i = drawn; i < end; i += 1) {
+        const piece = pieces[i];
+        const bmp = bitmaps.get(piece.src);
+        if (!bmp) continue;
+        const half = piece.size / 2;
+        ctx.save();
+        ctx.translate(piece.x, piece.y);
+        ctx.rotate(piece.rot);
+        ctx.drawImage(bmp, -half, -half, piece.size, piece.size);
+        ctx.restore();
+      }
+      drawn = end;
 
-  window.setTimeout(() => {
-    finale.classList.add("is-message");
-  }, FINALE_BURST_MS + 420);
+      if (drawn === batchSize) {
+        finale.classList.add("is-on", "is-painted");
+      }
+
+      if (drawn < pieces.length) {
+        requestAnimationFrame(drawBatch);
+        return;
+      }
+
+      window.setTimeout(() => {
+        finale.classList.add("is-message");
+      }, 420);
+    };
+
+    requestAnimationFrame(drawBatch);
+  })();
 
   shareBtn?.addEventListener("click", () => {
     void shareFinale();
@@ -469,6 +490,28 @@ function playFinale(sources) {
 
   closeBtn?.addEventListener("click", () => {
     closeFinale(finale);
+  });
+}
+
+function loadFinaleBitmaps(sources) {
+  const unique = [...new Set(sources)];
+  return Promise.all(
+    unique.map(
+      (src) =>
+        new Promise((resolve) => {
+          const img = new Image();
+          img.decoding = "async";
+          img.onload = () => resolve([src, img]);
+          img.onerror = () => resolve([src, null]);
+          img.src = src;
+        }),
+    ),
+  ).then((entries) => {
+    const map = new Map();
+    for (const [src, img] of entries) {
+      if (img) map.set(src, img);
+    }
+    return map;
   });
 }
 

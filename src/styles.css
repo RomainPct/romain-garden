@@ -662,6 +662,11 @@ button.site-footer__link:focus-visible {
   pointer-events: auto;
 }
 
+.sticker-finale.is-leaving {
+  opacity: 0;
+  pointer-events: none;
+}
+
 .sticker-finale__rain {
   position: absolute;
   inset: 0;
@@ -673,11 +678,26 @@ button.site-footer__link:focus-visible {
   object-fit: contain;
   opacity: 0;
   transform: translate(-50%, -50%) rotate(var(--rot, 0deg)) scale(0.4);
-  animation: sticker-finale-pop 520ms cubic-bezier(0.22, 1.25, 0.36, 1) forwards;
+  transition:
+    opacity 320ms ease,
+    transform 480ms cubic-bezier(0.22, 1.25, 0.36, 1);
+  transition-delay: var(--delay, 0ms);
   pointer-events: none;
   user-select: none;
   -webkit-user-drag: none;
-  filter: drop-shadow(0 8px 18px color-mix(in srgb, var(--rgn-foreground-primary) 18%, transparent));
+  contain: layout style;
+  will-change: opacity, transform;
+}
+
+.sticker-finale.is-painted .sticker-finale__piece {
+  opacity: 1;
+  transform: translate(-50%, -50%) rotate(var(--rot, 0deg)) scale(1);
+}
+
+.sticker-finale.is-leaving .sticker-finale__piece {
+  opacity: 0;
+  transition-delay: 0ms;
+  will-change: auto;
 }
 
 .sticker-finale__message {
@@ -713,6 +733,14 @@ button.site-footer__link:focus-visible {
   animation: sticker-finale-punch 720ms cubic-bezier(0.16, 1.2, 0.32, 1) forwards;
 }
 
+.sticker-finale__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  pointer-events: none;
+}
+
 .sticker-finale__cta {
   appearance: none;
   display: inline-flex;
@@ -722,23 +750,39 @@ button.site-footer__link:focus-visible {
   padding: 12px 22px;
   border: none;
   border-radius: 24px;
-  background: var(--rgn-brand-accent);
-  color: var(--rgn-foreground-on-brand);
   cursor: pointer;
   line-height: 22px;
   opacity: 0;
   transform: translateY(18px) scale(0.9) rotate(3deg);
   pointer-events: none;
+}
+
+.sticker-finale__cta--share {
+  background: var(--rgn-brand-accent);
+  color: var(--rgn-foreground-on-brand);
   filter: drop-shadow(0 6px 0 color-mix(in srgb, var(--rgn-brand-accent) 45%, #231f17));
 }
 
-.sticker-finale.is-message .sticker-finale__cta {
+.sticker-finale__cta--close {
+  background: transparent;
+  color: var(--rgn-foreground-primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  padding: 8px 12px;
+}
+
+.sticker-finale.is-message .sticker-finale__cta--share {
   animation: sticker-finale-punch 680ms 160ms cubic-bezier(0.16, 1.2, 0.32, 1) forwards;
   pointer-events: auto;
 }
 
-.sticker-finale__cta:hover,
-.sticker-finale__cta:focus-visible {
+.sticker-finale.is-message .sticker-finale__cta--close {
+  animation: sticker-finale-punch 680ms 240ms cubic-bezier(0.16, 1.2, 0.32, 1) forwards;
+  pointer-events: auto;
+}
+
+.sticker-finale__cta--share:hover,
+.sticker-finale__cta--share:focus-visible {
   filter: brightness(0.97)
     drop-shadow(0 6px 0 color-mix(in srgb, var(--rgn-brand-accent) 45%, #231f17));
 }
@@ -746,21 +790,6 @@ button.site-footer__link:focus-visible {
 .sticker-finale__cta:focus-visible {
   outline: 2px solid var(--rgn-foreground-primary);
   outline-offset: 3px;
-}
-
-@keyframes sticker-finale-pop {
-  0% {
-    opacity: 0;
-    transform: translate(-50%, -50%) rotate(var(--rot, 0deg)) scale(0.35);
-  }
-  70% {
-    opacity: 1;
-    transform: translate(-50%, -50%) rotate(var(--rot, 0deg)) scale(1.06);
-  }
-  100% {
-    opacity: 1;
-    transform: translate(-50%, -50%) rotate(var(--rot, 0deg)) scale(1);
-  }
 }
 
 @keyframes sticker-finale-punch {

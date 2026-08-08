@@ -2,8 +2,9 @@ const NEAR_PX = 88;
 const HIDE_DELAY_MS = 2000;
 const SLOT_SIZE = 48;
 const EDGE_REVEAL_PX = 36;
-const FINALE_COUNT = 1100;
-const FINALE_STAGGER_MS = 5;
+/** Cap density so the static overlay stays smooth (DOM images are expensive). */
+const FINALE_COUNT = 400;
+const FINALE_BURST_MS = 1400;
 
 /**
  * Left-side sticker collection tray.
@@ -232,6 +233,9 @@ function syncSlots(album, filled = new Set()) {
 }
 
 const discoveredSources = new Set();
+/** Stable shuffled slot order, randomized once at load (new finds insert randomly). */
+let slotOrder = [];
+let slotOrderSeeded = false;
 
 function seedKnownSources() {
   for (const sticker of findAllStickers(document)) {
@@ -252,9 +256,57 @@ function seedKnownSources() {
   });
 }
 
+function shuffleInPlace(list) {
+  for (let i = list.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = list[i];
+    list[i] = list[j];
+    list[j] = tmp;
+  }
+  return list;
+}
+
 function uniqueStickerSources() {
   seedKnownSources();
-  return [...discoveredSources];
+
+  if (!slotOrderSeeded) {
+    slotOrder = shuffleInPlace([...discoveredSources]);
+    slotOrderSeeded = true;
+    return slotOrder.slice();
+  }
+
+  const known = new Set(slotOrder);
+  for (const src of discoveredSources) {
+    if (known.has(src)) continue;
+    const idx = Math.floor(Math.random() * (slotOrder.length + 1));
+    slotOrder.splice(idx, 0, src);
+    known.add(src);
+  }
+
+  return slotOrder.filter((src) => discoveredSources.has(src));
+}
+
+function createSourcePicker(sources) {
+  const bag = shuffleInPlace(sources.slice());
+  let index = 0;
+  let last = "";
+
+  return () => {
+    if (!bag.length) return "";
+    if (index >= bag.length) {
+      shuffleInPlace(bag);
+      index = 0;
+      if (bag.length > 1 && bag[0] === last) {
+        const swap = 1 + Math.floor(Math.random() * (bag.length - 1));
+        const tmp = bag[0];
+        bag[0] = bag[swap];
+        bag[swap] = tmp;
+      }
+    }
+    last = bag[index];
+    index += 1;
+    return last;
+  };
 }
 
 function findAllStickers(root) {
@@ -353,46 +405,103 @@ function playFinale(sources) {
     <div class="sticker-finale__rain" aria-hidden="true"></div>
     <div class="sticker-finale__message">
       <p class="sticker-finale__yeah rgn-text-huge-title-visual">Yeaaaaaaah!</p>
-      <button type="button" class="sticker-finale__cta rgn-text-action">
-        Contact Romain to tell him something
-      </button>
+      <div class="sticker-finale__actions">
+        <button type="button" class="sticker-finale__cta sticker-finale__cta--share rgn-text-action">
+          Share
+        </button>
+        <button type="button" class="sticker-finale__cta sticker-finale__cta--close rgn-text-body">
+          I'm the boss, close
+        </button>
+      </div>
     </div>
   `;
   document.body.appendChild(finale);
 
   const rain = finale.querySelector(".sticker-finale__rain");
-  const cta = finale.querySelector(".sticker-finale__cta");
-
-  requestAnimationFrame(() => finale.classList.add("is-on"));
+  const shareBtn = finale.querySelector(".sticker-finale__cta--share");
+  const closeBtn = finale.querySelector(".sticker-finale__cta--close");
+  const pickSrc = createSourcePicker(sources);
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const fragment = document.createDocumentFragment();
 
   for (let i = 0; i < FINALE_COUNT; i += 1) {
     const img = document.createElement("img");
     img.className = "sticker-finale__piece";
-    img.src = sources[i % sources.length];
+    img.src = pickSrc();
     img.alt = "";
     img.draggable = false;
-    const size = 48 + Math.random() * 120;
-    const x = Math.random() * 100;
-    const y = Math.random() * 100;
-    const rot = -48 + Math.random() * 96;
+    img.decoding = "async";
+    img.loading = "eager";
+
+    const size = (36 + Math.random() * 88) * 1.5;
+    // Bleed past the viewport so edges are covered.
+    const bleed = size * 0.35;
+    const x = -bleed + Math.random() * (vw + bleed * 2);
+    const y = -bleed + Math.random() * (vh + bleed * 2);
+    const rot = -50 + Math.random() * 100;
+    const delay = Math.random() * FINALE_BURST_MS;
+
     img.style.width = `${size}px`;
     img.style.height = `${size}px`;
-    img.style.left = `${x}%`;
-    img.style.top = `${y}%`;
+    img.style.left = `${x}px`;
+    img.style.top = `${y}px`;
     img.style.setProperty("--rot", `${rot}deg`);
-    img.style.animationDelay = `${i * FINALE_STAGGER_MS}ms`;
-    rain.appendChild(img);
+    img.style.setProperty("--delay", `${delay}ms`);
+    fragment.appendChild(img);
   }
 
-  const coverMs = FINALE_COUNT * FINALE_STAGGER_MS + 700;
+  rain.appendChild(fragment);
+
+  // Paint final poses once (opacity 0), then reveal with opacity only.
+  requestAnimationFrame(() => {
+    void rain.offsetWidth;
+    finale.classList.add("is-on", "is-painted");
+  });
 
   window.setTimeout(() => {
     finale.classList.add("is-message");
-  }, coverMs + 200);
+  }, FINALE_BURST_MS + 420);
 
-  cta?.addEventListener("click", () => {
-    document.querySelector("romain-garden-nav")?.openContact();
+  shareBtn?.addEventListener("click", () => {
+    void shareFinale();
   });
+
+  closeBtn?.addEventListener("click", () => {
+    closeFinale(finale);
+  });
+}
+
+async function shareFinale() {
+  const payload = {
+    title: "Romain's Garden",
+    text: "I caught every sticker in Romain's Garden!",
+    url: window.location.href,
+  };
+
+  if (typeof navigator.share === "function") {
+    try {
+      await navigator.share(payload);
+      return;
+    } catch {
+      /* dismissed or unavailable — fall through */
+    }
+  }
+
+  try {
+    await navigator.clipboard.writeText(payload.url);
+  } catch {
+    /* ignore */
+  }
+}
+
+function closeFinale(finale) {
+  if (!(finale instanceof HTMLElement)) return;
+  finale.classList.remove("is-message", "is-painted");
+  finale.classList.add("is-leaving");
+  const remove = () => finale.remove();
+  finale.addEventListener("transitionend", remove, { once: true });
+  window.setTimeout(remove, 400);
 }
 
 function normalizeSrc(src) {

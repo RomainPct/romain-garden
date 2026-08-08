@@ -16,6 +16,8 @@ const styles = /* css */ `
     display: inline-flex;
     flex-shrink: 0;
     line-height: 0;
+    width: var(--sticker-size, 80px);
+    height: var(--sticker-size, 80px);
     cursor: grab;
     touch-action: none;
     -webkit-user-select: none;
@@ -32,8 +34,8 @@ const styles = /* css */ `
   .frame {
     position: relative;
     display: block;
-    width: var(--sticker-size, 80px);
-    height: var(--sticker-size, 80px);
+    width: 100%;
+    height: 100%;
     overflow: hidden;
   }
 
@@ -47,6 +49,10 @@ const styles = /* css */ `
     pointer-events: none;
     user-select: none;
     -webkit-user-drag: none;
+  }
+
+  :host([data-collecting]) .frame > img {
+    object-fit: contain;
   }
 `;
 
@@ -156,6 +162,87 @@ export class StickerIcon extends HTMLElement {
     `;
   }
 
+  #emit(name, extra = {}) {
+    return this.dispatchEvent(
+      new CustomEvent(name, {
+        bubbles: true,
+        composed: true,
+        cancelable: name === "sticker-grab-end",
+        detail: {
+          sticker: this,
+          src: this.src,
+          rect: this.getBoundingClientRect(),
+          ...extra,
+        },
+      }),
+    );
+  }
+
+  /**
+   * Animate this sticker into a target client rect (collection slot), then settle.
+   * @param {DOMRect | { left: number, top: number, width: number, height: number }} rect
+   */
+  collectInto(rect) {
+    return new Promise((resolve) => {
+      this.#teardownDragListeners();
+      this.#stopLoop();
+      this.#dragging = false;
+      delete this.dataset.dragging;
+      this.dataset.collecting = "";
+
+      const from = this.getBoundingClientRect();
+      const scrollX = window.scrollX;
+      const scrollY = window.scrollY;
+      const start = {
+        x: from.left + scrollX,
+        y: from.top + scrollY,
+        w: from.width,
+        h: from.height,
+      };
+      const end = {
+        x: rect.left + scrollX,
+        y: rect.top + scrollY,
+        w: rect.width,
+        h: rect.height,
+      };
+
+      this.#prepareAbsolute(start.w, start.h);
+      this.#bringToFront();
+      this.style.setProperty("--sticker-size", `${start.w}px`);
+      this.style.transition =
+        "left 480ms cubic-bezier(0.22, 1, 0.36, 1), top 480ms cubic-bezier(0.22, 1, 0.36, 1), width 480ms cubic-bezier(0.22, 1, 0.36, 1), height 480ms cubic-bezier(0.22, 1, 0.36, 1), transform 480ms cubic-bezier(0.22, 1, 0.36, 1)";
+      this.style.left = `${start.x}px`;
+      this.style.top = `${start.y}px`;
+      this.style.width = `${start.w}px`;
+      this.style.height = `${start.h}px`;
+      this.style.transform = this.#baseRotateDeg
+        ? `rotate(${this.#baseRotateDeg}deg)`
+        : "none";
+
+      requestAnimationFrame(() => {
+        this.style.setProperty("--sticker-size", `${end.w}px`);
+        this.style.left = `${end.x}px`;
+        this.style.top = `${end.y}px`;
+        this.style.width = `${end.w}px`;
+        this.style.height = `${end.h}px`;
+        this.style.transform = "rotate(0deg) scale(1)";
+      });
+
+      const done = () => {
+        this.removeEventListener("transitionend", onEnd);
+        this.style.transition = "";
+        resolve();
+      };
+      const onEnd = (event) => {
+        if (event.propertyName === "left" || event.propertyName === "width") {
+          done();
+        }
+      };
+      this.addEventListener("transitionend", onEnd);
+      window.setTimeout(done, 560);
+    });
+  }
+
   #onPointerDown = (event) => {
     if (event.button != null && event.button !== 0) return;
     if (this.#dragging) return;
@@ -209,6 +296,7 @@ export class StickerIcon extends HTMLElement {
 
     this.#lastTs = performance.now();
     this.#startLoop();
+    this.#emit("sticker-grab-start");
   };
 
   #onPointerMove = (event) => {
@@ -244,15 +332,19 @@ export class StickerIcon extends HTMLElement {
     this.#pointerId = null;
     this.#teardownDragListeners();
 
-    // Keep the physics loop running so release has inertia, then settle.
-    this.#lastTs = performance.now();
-    if (!this.#raf) this.#startLoop();
+    const collected = !this.#emit("sticker-grab-end");
 
     try {
       this.releasePointerCapture(event.pointerId);
     } catch {
       /* ignore */
     }
+
+    if (collected) return;
+
+    // Keep the physics loop running so release has inertia, then settle.
+    this.#lastTs = performance.now();
+    if (!this.#raf) this.#startLoop();
   };
 
   #teardownDragListeners() {
@@ -330,6 +422,7 @@ export class StickerIcon extends HTMLElement {
     this.style.left = `${x}px`;
     this.style.top = `${y}px`;
     this.style.transform = rotate ? `rotate(${rotate}deg)` : "none";
+    if (this.#dragging) this.#emit("sticker-drag");
   }
 
   #bringToFront() {

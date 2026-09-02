@@ -34,7 +34,6 @@ html.is-finale-open body {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 0.5rem 1rem 0.5rem 0.5rem;
   background: color-mix(in srgb, var(--rgn-background-z0) 88%, transparent);
   backdrop-filter: blur(10px);
 }
@@ -399,9 +398,6 @@ button.site-footer__link:focus-visible {
 }
 
 @media (max-width: 640px) {
-  .site-header {
-    padding: 0.5rem 1rem 0.5rem 0.5rem;
-  }
 
   .header-actions {
     display: none;

@@ -225,10 +225,17 @@ html.is-finale-open body {
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 6px 8px;
+  gap: 4px;
   margin: 0;
   color: var(--rgn-foreground-secondary);
   line-height: 22px;
+}
+
+.hero__eyebrow-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px 8px;
 }
 
 .hero__profile {
@@ -415,6 +422,12 @@ button.site-footer__link:focus-visible {
 
   .hero__eyebrow {
     justify-content: flex-start;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .hero__eyebrow .comma {
+    display: none;
   }
 
   .hero__title {

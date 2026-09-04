@@ -117,10 +117,6 @@ const styles = /* css */ `
 
     .content {
       width: 100%;
-      font-family: var(--rgn-text-mobile-huge-title-font-family);
-      font-weight: var(--rgn-text-mobile-huge-title-font-weight);
-      font-size: var(--rgn-text-mobile-huge-title-font-size);
-      letter-spacing: var(--rgn-text-mobile-huge-title-letter-spacing);
     }
 
     .subtitle {
